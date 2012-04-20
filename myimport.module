@@ -1,0 +1,93 @@
+<?php
+
+//just to look at node architecture
+function myimport_node_view($node, $view_mode, $langcode)
+{
+	//dpm($node);
+}
+
+function myimport_menu()
+{
+	$items['import'] = array(
+		'title' => 'Hello you',
+		'page callback' => 'import_csv',
+		'access arguments' => array('administer contentr'),
+ 	);
+ 	return $items;
+}
+
+function import_csv()
+{	$i = 0;
+	if (($handle = fopen('public://roster1.csv', 'r')) !== FALSE) 
+	{
+		while(($data = fgetcsv($handle, 1000, ",")) !== FALSE) 
+		{
+			for ($j = 0; $j < count($data); $j++)
+			{
+				$rows[$i][] = $data[$j];
+			}
+		$i++;
+		}
+	} 
+	fclose($handle);
+	unset($rows[0]);
+	//dpm($rows);
+	return csv_to_node($rows);
+}
+
+function csv_to_node($data = '')
+{
+	foreach ($data as $record)
+	{
+		$node = new stdClass();
+	 	$node->type = 'player';
+	 	$node->title = $record[2] . ' ' . $record[3];
+	 	if (isset($record[4])) 
+	 	{
+		 	$illegal = array(' ', '-', '(', ')');
+		 	str_replace($illegal, '', $record[4]);
+		 	$node->field_contact_phone['und'][0]['value'] = $record[4];
+	 	}
+	 	if (isset($record[0]))
+	 	{ 
+		 	if ($record[0] == "Double A"){
+				$node->field_league_ref['und'][0]['nid'] = 555;	 		
+		 	}
+		 	elseif ($record[0] == "Majors"){
+	 			$node->field_league_ref['und'][0]['nid'] = 59;
+		 	}
+		 	elseif ($record[0] == "T-Ball"){
+		 		$node->field_league_ref['und'][0]['nid'] = 56;
+		 	}
+		 	elseif ($record[0] == "Triple A"){
+		 		$node->field_league_ref['und'][0]['nid'] = 58;
+		 	}
+		 	else {
+		 		$node->field_league_ref['und'][0]['nid'] = 60;
+		 	}
+	 	}
+	 	if (isset($record[11])) $node->field_other_info['und'][0]['value'] = $record[10];
+	 	$node->field_shirt_size['und'][0]['value'] = $record[8];
+	 	$node->field_pants_size['und'][0]['value'] = $record[9];
+	 	$node->field_contact['und'][0]['value'] = $record[5];
+	 	$node->field_contact['und'][0]['safe_value'] = $record[5];	 		 	
+	 	$node->field_dob['und'][0]['value'] = date('Y-m-d 00:00:00', (strtotime($record[6])));
+	 	$dob = strtotime($node->field_dob['und'][0]['value'] = date('Y-m-d 00:00:00', (strtotime($record[6]))));
+	 	$node->field_age['und'][0]['value'] = floor((time() - $dob)/(86400*365));
+	 	$node->field_email['und'][0]['email'] = $record[7];
+	 	$team = get_team($record[1]);
+	 	if ($team) $node->field_team['und'][0]['nid'] = $team;
+	 	node_object_prepare($node);
+	 	node_save($node);
+	}
+	return 'foo';
+}
+
+function get_team($team_name)
+{
+	$result = db_query("SELECT nid FROM node WHERE (type = 'team' AND title = '$team_name')");
+	$team = $result->fetchField();
+	//dpm($team);
+	return ($team);
+}	
+

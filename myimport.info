@@ -1,0 +1,4 @@
+name = myimport
+description = import csv for mt airy
+core = 7.x
+
